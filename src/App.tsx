@@ -7,16 +7,22 @@ import { TransactionList } from './components/Transactionlist'
 import { HistoryView } from './components/HistoryView'
 import { InsightsView } from './components/InsightsView'
 import { CashCounterView } from './components/CashCounterView'
+import { NotesView } from './components/NotesView'
+
 import {
   getAllTransactions,
   deleteTransaction,
-  createTransaction
+  createTransaction,
+  supabase,
+  getAllNotes,
+  createNote,
+  deleteNote,
+  type Note
 } from './db'
-import { supabase } from './db'
 
 import type { Transaction, NewTransactionInput } from './db'
 
-type Tab = 'home' | 'history' | 'insights' | 'cash'
+type Tab = 'home' | 'history' | 'insights' | 'cash' | 'notes'
 
 function isSameDay(a: Date, b: Date) {
   return (
@@ -35,24 +41,45 @@ function App() {
     return saved ? Number(saved) || 0 : 0
   })
 
+  const [notes, setNotes] = useState<Note[]>([])
+  const [notesLoading, setNotesLoading] = useState(true)
+
   const loadTransactions = async () => {
     const all = await getAllTransactions()
     setTransactions(all)
   }
-  
+
+  const loadNotes = async () => {
+    const all = await getAllNotes()
+    setNotes(all)
+  }
 
   useEffect(() => {
     ;(async () => {
-      await loadTransactions()
-      setLoading(false)
+      try {
+        await loadTransactions()
+        await loadNotes()
+      } finally {
+        setLoading(false)
+        setNotesLoading(false)
+      }
     })()
   }, [])
+
+  const handleAddNote = async (text: string) => {
+    await createNote({ text })
+    await loadNotes()
+  }
+
+  const handleDeleteNote = async (id: string) => {
+    await deleteNote(id)
+    await loadNotes()
+  }
 
   const handleDelete = async (id: string) => {
     await deleteTransaction(id)
     await loadTransactions()
   }
-  
 
   const handleExportJSON = () => {
     const dataStr = JSON.stringify(transactions, null, 2)
@@ -60,7 +87,7 @@ function App() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'cafe-finance.json'
+    a.download = 'cafe-atmospherea.json'
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -98,7 +125,7 @@ function App() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'cafe-finance.csv'
+    a.download = 'cafe-atmospherea.csv'
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -132,12 +159,8 @@ function App() {
       </head>
       <body>
         <h1>Daily Close – ${today.toLocaleDateString()}</h1>
-        <p><strong>Total revenue:</strong> ₹${totalIncome.toFixed(
-          2
-        )}</p>
-        <p><strong>Total expenses:</strong> ₹${totalExpense.toFixed(
-          2
-        )}</p>
+        <p><strong>Total revenue:</strong> ₹${totalIncome.toFixed(2)}</p>
+        <p><strong>Total expenses:</strong> ₹${totalExpense.toFixed(2)}</p>
         <p><strong>Profit:</strong> ₹${profit.toFixed(2)}</p>
         <h2>Transactions</h2>
         <table>
@@ -180,17 +203,21 @@ function App() {
     ) {
       return
     }
-    const { error } = await supabase.from('transactions').delete().gt('created_at', '1970-01-01')
 
-  if (error) {
-    console.error('Failed to clear all transactions:', error)
-    alert('Error clearing transactions.')
-    return
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .gt('created_at', '1970-01-01')
+
+    if (error) {
+      console.error('Failed to clear all transactions:', error)
+      alert('Error clearing transactions.')
+      return
+    }
+
+    await loadTransactions()
   }
 
-  await loadTransactions()
-}
-    
   const today = new Date()
   const todayTransactions = useMemo(
     () => transactions.filter(t => isSameDay(new Date(t.date), today)),
@@ -207,13 +234,11 @@ function App() {
     [transactions]
   )
 
-  // recurring reminders: for each recurring transaction template, if not present this month, show reminder
   const recurringReminders = useMemo(() => {
     const templates = transactions.filter(t => t.isRecurring)
     if (!templates.length) return []
 
     const now = new Date()
-    // const monthKey = `${now.getFullYear()}-${now.getMonth()}`
     const monthTx = transactions.filter(t => {
       const d = new Date(t.date)
       return (
@@ -246,7 +271,6 @@ function App() {
     await createTransaction(payload)
     await loadTransactions()
   }
-  
 
   const updateDailyTarget = (value: string) => {
     const num = Number(value) || 0
@@ -276,7 +300,7 @@ function App() {
             Atmospherea Finance
           </h1>
           <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af' }}>
-            Expense tracker 
+            Expense tracker
           </p>
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
@@ -339,7 +363,8 @@ function App() {
           { id: 'home', label: 'Add' },
           { id: 'history', label: 'History' },
           { id: 'insights', label: 'Insights' },
-          { id: 'cash', label: 'Cash' }
+          { id: 'cash', label: 'Cash' },
+          { id: 'notes', label: 'Notes' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -552,6 +577,15 @@ function App() {
               <CashCounterView items={transactions} />
             )}
           </>
+        )}
+
+        {activeTab === 'notes' && (
+          <NotesView
+            notes={notes}
+            loading={notesLoading}
+            onAddNote={handleAddNote}
+            onDeleteNote={handleDeleteNote}
+          />
         )}
       </div>
 

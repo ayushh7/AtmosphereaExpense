@@ -90,7 +90,6 @@ export async function createTransaction(input: NewTransactionInput): Promise<voi
     payment_method: input.paymentMethod ?? null,
     is_recurring: input.isRecurring ?? null,
     receipt_data_url: input.receiptDataUrl ?? null
-    // created_at auto-filled
   })
 
   if (error) {
@@ -103,6 +102,65 @@ export async function deleteTransaction(id: string): Promise<void> {
   const { error } = await supabase.from('transactions').delete().eq('id', id)
   if (error) {
     console.error('Error deleting transaction', error)
+    throw error
+  }
+}
+
+/* ---------------------- Notes ------------------------- */
+
+export interface Note {
+  id: string
+  text: string
+  createdAt: string
+}
+
+interface NoteRow {
+  id: string
+  text: string
+  created_at: string
+}
+
+function mapNoteRow(row: NoteRow): Note {
+  return {
+    id: row.id,
+    text: row.text,
+    createdAt: row.created_at
+  }
+}
+
+export async function getAllNotes(): Promise<Note[]> {
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching notes', error)
+    throw error
+  }
+
+  return (data as NoteRow[]).map(mapNoteRow)
+}
+
+export interface NewNoteInput {
+  text: string
+}
+
+export async function createNote(input: NewNoteInput): Promise<void> {
+  const { error } = await supabase.from('notes').insert({
+    text: input.text
+  })
+
+  if (error) {
+    console.error('Error creating note', error)
+    throw error
+  }
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  const { error } = await supabase.from('notes').delete().eq('id', id)
+  if (error) {
+    console.error('Error deleting note', error)
     throw error
   }
 }
