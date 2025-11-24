@@ -28,8 +28,8 @@ const QUICK_EXPENSE = [
 
 export function TransactionForm({ onTransactionAdded, categorySuggestions }: Props) {
     const [amount, setAmount] = useState('')
-    const [type, setType] = useState<TransactionType>('expense')
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+    const [type, setType] = useState<TransactionType>('income')
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('online')
     const [category, setCategory] = useState('')
     const [note, setNote] = useState('')
     const [submitting, setSubmitting] = useState(false)
