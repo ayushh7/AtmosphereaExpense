@@ -18,7 +18,7 @@ export function Layout({ children }: LayoutProps) {
       <div
         style={{
           width: '100%',
-          maxWidth: 520,          // nice phone/tablet width
+          maxWidth: 520,          
           minHeight: '100vh',
           margin: '0 auto',
           padding: '12px 12px 24px',
