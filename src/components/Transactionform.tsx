@@ -110,8 +110,8 @@ export function TransactionForm({ onTransactionAdded, categorySuggestions }: Pro
             setAmount('')
             setCategory('')
             setNote('')
-            setType('expense')
-            setPaymentMethod('cash')
+            setType('income')
+            setPaymentMethod('online')
             setIsRecurring(false)
             setReceiptFile(null)
 
@@ -267,7 +267,7 @@ export function TransactionForm({ onTransactionAdded, categorySuggestions }: Pro
                     onChange={e => setCategory(e.target.value)}
                     onFocus={() => setCategoryInputFocused(true)}
                     onBlur={() => setTimeout(() => setCategoryInputFocused(false), 100)}
-                    placeholder="Category (e.g. Food Sale, Rent)"
+                    placeholder="Category (Eg: Events, Utilities, etc.)"
                     style={{
                         width: '100%',
                         padding: '8px',
@@ -315,7 +315,7 @@ export function TransactionForm({ onTransactionAdded, categorySuggestions }: Pro
                 type="text"
                 value={note}
                 onChange={e => setNote(e.target.value)}
-                placeholder="Note (e.g. Swiggy payout, Milk vendor)"
+                placeholder="Notes (optional)"
                 style={{
                     padding: '8px',
                     borderRadius: '8px',
