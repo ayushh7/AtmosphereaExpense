@@ -9,22 +9,22 @@ export function Layout({ children }: LayoutProps) {
     <div
       style={{
         minHeight: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-start',
+        width: '100%',
         background: '#020617',
-        color: '#e5e7eb',
-        padding: '24px'
+        display: 'flex',
+        justifyContent: 'center'
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: '480px',
-          background: '#0f172a',
-          borderRadius: '16px',
-          padding: '16px 16px 24px',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)'
+          maxWidth: 520,          // nice phone/tablet width
+          minHeight: '100vh',
+          margin: '0 auto',
+          padding: '12px 12px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          background: '#020617'
         }}
       >
         {children}
