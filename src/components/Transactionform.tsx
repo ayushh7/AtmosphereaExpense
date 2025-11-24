@@ -1,8 +1,12 @@
 // src/components/TransactionForm.tsx
 import { useMemo, useState } from 'react'
-import { db } from '../db'
-import type { TransactionType, PaymentMethod } from '../db'
-import { v4 as uuid } from 'uuid'
+import { createTransaction } from '../db'
+import type {
+  TransactionType,
+  PaymentMethod,
+  NewTransactionInput
+} from '../db'
+// import { v4 as uuid } from 'uuid'
 
 interface Props {
     onTransactionAdded: () => void
@@ -89,18 +93,19 @@ export function TransactionForm({ onTransactionAdded, categorySuggestions }: Pro
                 }
             }
 
-            await db.transactions.add({
-                id: uuid(),
+            const payload: NewTransactionInput = {
                 amount: parsedAmount,
                 type,
                 paymentMethod,
                 category: category.trim() || (type === 'income' ? 'Food Sale' : 'Other'),
                 note: note.trim() || undefined,
                 date: now,
-                createdAt: now,
                 isRecurring: isRecurring || undefined,
                 receiptDataUrl
-            })
+              }
+              
+              await createTransaction(payload)
+              
 
             setAmount('')
             setCategory('')

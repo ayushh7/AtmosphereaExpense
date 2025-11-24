@@ -7,8 +7,14 @@ import { TransactionList } from './components/Transactionlist'
 import { HistoryView } from './components/HistoryView'
 import { InsightsView } from './components/InsightsView'
 import { CashCounterView } from './components/CashCounterView'
-import { db } from './db'
-import type { Transaction } from './db'
+import {
+  getAllTransactions,
+  deleteTransaction,
+  createTransaction
+} from './db'
+import { supabase } from './db'
+
+import type { Transaction, NewTransactionInput } from './db'
 
 type Tab = 'home' | 'history' | 'insights' | 'cash'
 
@@ -30,9 +36,10 @@ function App() {
   })
 
   const loadTransactions = async () => {
-    const all = await db.transactions.orderBy('createdAt').reverse().toArray()
+    const all = await getAllTransactions()
     setTransactions(all)
   }
+  
 
   useEffect(() => {
     ;(async () => {
@@ -42,9 +49,10 @@ function App() {
   }, [])
 
   const handleDelete = async (id: string) => {
-    await db.transactions.delete(id)
+    await deleteTransaction(id)
     await loadTransactions()
   }
+  
 
   const handleExportJSON = () => {
     const dataStr = JSON.stringify(transactions, null, 2)
@@ -172,10 +180,17 @@ function App() {
     ) {
       return
     }
-    await db.transactions.clear()
-    await loadTransactions()
+    const { error } = await supabase.from('transactions').delete().gt('created_at', '1970-01-01')
+
+  if (error) {
+    console.error('Failed to clear all transactions:', error)
+    alert('Error clearing transactions.')
+    return
   }
 
+  await loadTransactions()
+}
+    
   const today = new Date()
   const todayTransactions = useMemo(
     () => transactions.filter(t => isSameDay(new Date(t.date), today)),
@@ -218,14 +233,20 @@ function App() {
 
   const addRecurringNow = async (tpl: Transaction) => {
     const now = new Date().toISOString()
-    await db.transactions.add({
-      ...tpl,
-      id: crypto.randomUUID(),
+    const payload: NewTransactionInput = {
+      amount: tpl.amount,
+      type: tpl.type,
+      category: tpl.category,
       date: now,
-      createdAt: now
-    })
+      note: tpl.note,
+      paymentMethod: tpl.paymentMethod,
+      isRecurring: tpl.isRecurring,
+      receiptDataUrl: tpl.receiptDataUrl
+    }
+    await createTransaction(payload)
     await loadTransactions()
   }
+  
 
   const updateDailyTarget = (value: string) => {
     const num = Number(value) || 0
