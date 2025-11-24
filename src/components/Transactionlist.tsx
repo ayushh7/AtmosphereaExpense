@@ -1,4 +1,5 @@
-import type  { Transaction } from '../db'
+// src/components/TransactionList.tsx
+import type { Transaction } from '../db'
 
 interface Props {
   items: Transaction[]
@@ -19,6 +20,10 @@ export function TransactionList({ items, onDelete }: Props) {
         No transactions yet. Start by adding one above.
       </div>
     )
+  }
+
+  const openReceipt = (url: string) => {
+    window.open(url, '_blank')
   }
 
   return (
@@ -67,6 +72,22 @@ export function TransactionList({ items, onDelete }: Props) {
               >
                 {new Date(tx.date).toLocaleString()}
               </div>
+              {tx.receiptDataUrl && (
+                <button
+                  onClick={() => openReceipt(tx.receiptDataUrl!)}
+                  style={{
+                    marginTop: '3px',
+                    fontSize: '11px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: '#38bdf8',
+                    cursor: 'pointer',
+                    padding: 0
+                  }}
+                >
+                  View receipt
+                </button>
+              )}
             </div>
 
             <div style={{ textAlign: 'right' }}>

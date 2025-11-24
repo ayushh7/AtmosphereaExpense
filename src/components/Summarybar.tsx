@@ -1,12 +1,12 @@
-// import { Transaction } from '../db'
-import type { Transaction } from '../db'
 
+import type { Transaction } from '../db'
 
 interface Props {
   items: Transaction[]
+  label?: string
 }
 
-export function SummaryBar({ items }: Props) {
+export function SummaryBar({ items, label }: Props) {
   const income = items
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0)
@@ -24,71 +24,69 @@ export function SummaryBar({ items }: Props) {
     })}`
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
-        gap: '8px',
-        marginBottom: '16px'
-      }}
-    >
-      <div
-        style={{
-          background: '#020617',
-          borderRadius: '12px',
-          padding: '8px 10px'
-        }}
-      >
+    <div style={{ marginBottom: '8px' }}>
+      {label && (
         <div
           style={{
             fontSize: '12px',
-            color: '#9ca3af'
+            color: '#9ca3af',
+            marginBottom: '4px'
           }}
         >
-          Income
+          {label}
         </div>
-        <div style={{ fontWeight: 600, fontSize: '14px', color: '#22c55e' }}>
-          {formatCurrency(income)}
-        </div>
-      </div>
+      )}
 
       <div
         style={{
-          background: '#020617',
-          borderRadius: '12px',
-          padding: '8px 10px'
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: '8px'
         }}
       >
         <div
           style={{
-            fontSize: '12px',
-            color: '#9ca3af'
+            background: '#020617',
+            borderRadius: '12px',
+            padding: '8px 10px'
           }}
         >
-          Expense
+          <div style={{ fontSize: '12px', color: '#9ca3af' }}>Income</div>
+          <div style={{ fontWeight: 600, fontSize: '14px', color: '#22c55e' }}>
+            {formatCurrency(income)}
+          </div>
         </div>
-        <div style={{ fontWeight: 600, fontSize: '14px', color: '#ef4444' }}>
-          {formatCurrency(expense)}
-        </div>
-      </div>
 
-      <div
-        style={{
-          background: '#020617',
-          borderRadius: '12px',
-          padding: '8px 10px'
-        }}
-      >
         <div
           style={{
-            fontSize: '12px',
-            color: '#9ca3af'
+            background: '#020617',
+            borderRadius: '12px',
+            padding: '8px 10px'
           }}
         >
-          Balance
+          <div style={{ fontSize: '12px', color: '#9ca3af' }}>Expense</div>
+          <div style={{ fontWeight: 600, fontSize: '14px', color: '#ef4444' }}>
+            {formatCurrency(expense)}
+          </div>
         </div>
-        <div style={{ fontWeight: 600, fontSize: '14px', color: '#fbbf24' }}>
-          {formatCurrency(balance)}
+
+        <div
+          style={{
+            background: '#020617',
+            borderRadius: '12px',
+            padding: '8px 10px'
+          }}
+        >
+          <div style={{ fontSize: '12px', color: '#9ca3af' }}>Profit</div>
+          <div
+            style={{
+              fontWeight: 600,
+              fontSize: '14px',
+              color: balance >= 0 ? '#fbbf24' : '#ef4444'
+            }}
+          >
+            {formatCurrency(balance)}
+          </div>
         </div>
       </div>
     </div>
