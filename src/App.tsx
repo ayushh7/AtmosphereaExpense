@@ -23,6 +23,7 @@ import {
 import type { Transaction, NewTransactionInput } from './db'
 
 type Tab = 'home' | 'history' | 'insights' | 'cash' | 'notes'
+type Role = 'admin' | 'moderator' | 'user'
 
 function isSameDay(a: Date, b: Date) {
   return (
@@ -44,6 +45,14 @@ function App() {
   const [notes, setNotes] = useState<Note[]>([])
   const [notesLoading, setNotesLoading] = useState(true)
 
+  const [role, setRole] = useState<Role | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
+
+  const [loginUsername, setLoginUsername] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
+
   const loadTransactions = async () => {
     const all = await getAllTransactions()
     setTransactions(all)
@@ -54,7 +63,22 @@ function App() {
     setNotes(all)
   }
 
+  // load stored role from localStorage
   useEffect(() => {
+    const stored = localStorage.getItem('role') as Role | null
+    if (stored === 'admin' || stored === 'moderator' || stored === 'user') {
+      setRole(stored)
+    }
+    setAuthChecked(true)
+  }, [])
+
+  // load data once role is known (only when logged in)
+  useEffect(() => {
+    if (!role) {
+      setLoading(false)
+      setNotesLoading(false)
+      return
+    }
     ;(async () => {
       try {
         await loadTransactions()
@@ -64,19 +88,140 @@ function App() {
         setNotesLoading(false)
       }
     })()
-  }, [])
+  }, [role])
+  useEffect(() => {
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    // when session changes, fetch profile and set role
+    if (session?.access_token) {
+      // fetch profile role as we do in login
+    } else {
+      setRole(null)
+      localStorage.removeItem('role')
+    }
+  })
+  return () => data.subscription.unsubscribe()
+}, [])
+
+
+// replace your existing handleLogin with this
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setLoginError(null)
+  setLoginLoading(true)
+
+  // local username -> email mapping (used for Supabase Auth)
+  const emailMap: Record<string, string> = {
+    admin: 'admin@atmospherea.local',
+    moderator: 'moderator@atmospherea.local',
+    user: 'user@atmospherea.local'
+  }
+
+  // validate local creds first (keeps the same UX you had)
+  let expectedRole: Role | null = null
+  if (loginUsername === 'admin' && loginPassword === 'rishuanshu') {
+    expectedRole = 'admin'
+  } else if (
+    loginUsername === 'moderator' &&
+    loginPassword === 'atmospherea25042025'
+  ) {
+    expectedRole = 'moderator'
+  } else if (loginUsername === 'user' && loginPassword === 'useratmospherea') {
+    expectedRole = 'user'
+  }
+
+  if (!expectedRole) {
+    setLoginError('Invalid username or password')
+    setLoginLoading(false)
+    return
+  }
+
+  const email = emailMap[loginUsername]
+  const password = loginPassword
+
+  try {
+    // sign in to supabase (this creates a session so RLS sees auth.uid())
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+
+    if (error) {
+      // show helpful message (maybe user not created on Supabase)
+      setLoginError('Auth failed: ' + error.message)
+      setLoginLoading(false)
+      return
+    }
+
+    // If signIn succeeded, fetch the role from profiles table (if present)
+    const user = data?.user
+    let serverRole: Role | null = expectedRole
+
+    if (user?.id) {
+      const { data: profile, error: pErr } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (pErr) {
+        console.warn('Could not load profile role:', pErr)
+      } else if (profile?.role) {
+        serverRole = profile.role as Role
+      }
+    }
+
+    // set role in UI (serverRole wins if present)
+    setRole(serverRole)
+    if (serverRole) localStorage.setItem('role', serverRole)
+
+    // load data now that session exists
+    await loadTransactions()
+    await loadNotes()
+  } catch (err: any) {
+    console.error('Login error', err)
+    setLoginError('Login error: ' + (err?.message || String(err)))
+  } finally {
+    setLoginLoading(false)
+  }
+}
+
+
+const handleLogout = async () => {
+  try {
+    await supabase.auth.signOut()
+  } catch (err) {
+    console.warn('supabase signOut error', err)
+  }
+  setRole(null)
+  localStorage.removeItem('role')
+  setTransactions([])
+  setNotes([])
+}
+
 
   const handleAddNote = async (text: string) => {
+    if (!role || role === 'user') {
+      alert('Only admin or moderator can add notes.')
+      return
+    }
     await createNote({ text })
     await loadNotes()
   }
 
   const handleDeleteNote = async (id: string) => {
+    if (role !== 'admin') {
+      alert('Only admin can delete notes.')
+      return
+    }
     await deleteNote(id)
     await loadNotes()
   }
 
   const handleDelete = async (id: string) => {
+    if (role !== 'admin') {
+      alert('Only admin can delete transactions.')
+      return
+    }
     await deleteTransaction(id)
     await loadTransactions()
   }
@@ -93,14 +238,7 @@ function App() {
   }
 
   const handleExportCSV = () => {
-    const header = [
-      'date',
-      'type',
-      'category',
-      'amount',
-      'paymentMethod',
-      'note'
-    ]
+    const header = ['date', 'type', 'category', 'amount', 'paymentMethod', 'note']
     const rows = transactions.map(t => [
       new Date(t.date).toISOString(),
       t.type,
@@ -113,11 +251,7 @@ function App() {
     const csv =
       [header, ...rows]
         .map(r =>
-          r
-            .map(field =>
-              `"${String(field).replace(/"/g, '""')}"`
-            )
-            .join(',')
+          r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')
         )
         .join('\n') + '\n'
 
@@ -132,9 +266,7 @@ function App() {
 
   const handleDailyCloseReport = () => {
     const today = new Date()
-    const todayTx = transactions.filter(tx =>
-      isSameDay(new Date(tx.date), today)
-    )
+    const todayTx = transactions.filter(tx => isSameDay(new Date(tx.date), today))
 
     const totalIncome = todayTx
       .filter(t => t.type === 'income')
@@ -197,6 +329,11 @@ function App() {
   }
 
   const handleClearAll = async () => {
+    if (role !== 'admin') {
+      alert('Only admin can clear all transactions.')
+      return
+    }
+
     if (
       transactions.length === 0 ||
       !window.confirm('Clear all transactions? This cannot be undone.')
@@ -257,6 +394,11 @@ function App() {
   }, [transactions])
 
   const addRecurringNow = async (tpl: Transaction) => {
+    if (!role || role === 'user') {
+      alert('Only admin or moderator can add recurring transactions.')
+      return
+    }
+
     const now = new Date().toISOString()
     const payload: NewTransactionInput = {
       amount: tpl.amount,
@@ -276,6 +418,99 @@ function App() {
     const num = Number(value) || 0
     setDailyTarget(num)
     localStorage.setItem('dailyTarget', String(num))
+  }
+
+  // --- auth gating ---
+
+  if (!authChecked) {
+    return null
+  }
+
+  if (!role) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#020617',
+          color: '#e5e7eb'
+        }}
+      >
+        <form
+          onSubmit={handleLogin}
+          style={{
+            background: '#020617',
+            borderRadius: '16px',
+            padding: '20px',
+            width: '100%',
+            maxWidth: '360px',
+            border: '1px solid #1f2937',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: '18px' }}>Atmospherea Finance</h2>
+          <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af' }}>
+            Login
+          </p>
+
+          <input
+            type="text"
+            placeholder="Username"
+            value={loginUsername}
+            onChange={e => setLoginUsername(e.target.value)}
+            style={{
+              padding: '8px',
+              borderRadius: '8px',
+              border: '1px solid #1f2937',
+              background: '#020617',
+              color: '#e5e7eb',
+              fontSize: '14px'
+            }}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={loginPassword}
+            onChange={e => setLoginPassword(e.target.value)}
+            style={{
+              padding: '8px',
+              borderRadius: '8px',
+              border: '1px solid #1f2937',
+              background: '#020617',
+              color: '#e5e7eb',
+              fontSize: '14px'
+            }}
+          />
+
+          {loginError && (
+            <div style={{ fontSize: '12px', color: '#f97316' }}>{loginError}</div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loginLoading}
+            style={{
+              marginTop: '4px',
+              padding: '10px',
+              borderRadius: '999px',
+              border: 'none',
+              background: loginLoading ? '#4b5563' : '#22c55e',
+              color: '#020617',
+              fontWeight: 600,
+              cursor: loginLoading ? 'default' : 'pointer'
+            }}
+          >
+            {loginLoading ? 'Signing in…' : 'Sign in'}
+          </button>
+
+          
+        </form>
+      </div>
+    )
   }
 
   return (
@@ -300,10 +535,10 @@ function App() {
             Atmospherea Finance
           </h1>
           <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af' }}>
-            Expense tracker
+            Expense tracker · Role: {role}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           <button
             onClick={handleExportCSV}
             style={{
@@ -339,12 +574,26 @@ function App() {
               padding: '6px 10px',
               borderRadius: '999px',
               border: '1px solid #1f2937',
-              background: '#111827',
-              color: '#f97316',
-              cursor: 'pointer'
+              background: role === 'admin' ? '#111827' : '#1f2937',
+              color: role === 'admin' ? '#f97316' : '#6b7280',
+              cursor: role === 'admin' ? 'pointer' : 'not-allowed'
             }}
           >
             Clear
+          </button>
+          <button
+            onClick={handleLogout}
+            style={{
+              fontSize: '11px',
+              padding: '6px 10px',
+              borderRadius: '999px',
+              border: '1px solid #1f2937',
+              background: '#020617',
+              color: '#e5e7eb',
+              cursor: 'pointer'
+            }}
+          >
+            Logout
           </button>
         </div>
       </header>
@@ -375,8 +624,7 @@ function App() {
               padding: '6px 0',
               borderRadius: '999px',
               border: 'none',
-              background:
-                activeTab === tab.id ? '#22c55e' : 'transparent',
+              background: activeTab === tab.id ? '#22c55e' : 'transparent',
               color: activeTab === tab.id ? '#020617' : '#e5e7eb',
               fontSize: '12px',
               fontWeight: 500,
@@ -500,10 +748,12 @@ function App() {
                           padding: '4px 8px',
                           borderRadius: '999px',
                           border: 'none',
-                          background: '#22c55e',
+                          background:
+                            role === 'user' ? '#4b5563' : '#22c55e',
                           color: '#020617',
                           fontSize: '11px',
-                          cursor: 'pointer'
+                          cursor:
+                            role === 'user' ? 'not-allowed' : 'pointer'
                         }}
                       >
                         Add for this month
@@ -517,6 +767,7 @@ function App() {
             <TransactionForm
               onTransactionAdded={loadTransactions}
               categorySuggestions={categorySuggestions}
+              role={role}
             />
 
             <div style={{ marginTop: '10px' }}>

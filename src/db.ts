@@ -55,20 +55,21 @@ function mapRow(row: TransactionRow): Transaction {
   }
 }
 
+
 export async function getAllTransactions(): Promise<Transaction[]> {
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching transactions', error)
-    throw error
+    const { data, error, status } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+  
+    console.log('DEBUG getAllTransactions -> status', status, 'error', error, 'data length', data?.length)
+    if (error) {
+      console.error('DEBUG getAllTransactions error:', error)
+      // return empty array so UI shows nothing (but we logged the error)
+      return []
+    }
+    return (data as any[]).map(mapRow)
   }
-
-  return (data as TransactionRow[]).map(mapRow)
-}
-
 export interface NewTransactionInput {
   amount: number
   type: TransactionType
@@ -81,22 +82,23 @@ export interface NewTransactionInput {
 }
 
 export async function createTransaction(input: NewTransactionInput): Promise<void> {
-  const { error } = await supabase.from('transactions').insert({
-    amount: input.amount,
-    type: input.type,
-    category: input.category,
-    date: input.date,
-    note: input.note ?? null,
-    payment_method: input.paymentMethod ?? null,
-    is_recurring: input.isRecurring ?? null,
-    receipt_data_url: input.receiptDataUrl ?? null
-  })
-
-  if (error) {
-    console.error('Error creating transaction', error)
-    throw error
+    const resp = await supabase.from('transactions').insert({
+      amount: input.amount,
+      type: input.type,
+      category: input.category,
+      date: input.date,
+      note: input.note ?? null,
+      payment_method: input.paymentMethod ?? null,
+      is_recurring: input.isRecurring ?? null,
+      receipt_data_url: input.receiptDataUrl ?? null
+    })
+  
+    console.log('DEBUG createTransaction resp:', resp)
+    if (resp.error) {
+      // throw the Supabase error so UI can show it
+      throw new Error(resp.error.message || JSON.stringify(resp.error))
+    }
   }
-}
 
 export async function deleteTransaction(id: string): Promise<void> {
   const { error } = await supabase.from('transactions').delete().eq('id', id)
