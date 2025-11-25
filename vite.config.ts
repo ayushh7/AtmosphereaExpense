@@ -7,29 +7,77 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'favicon.svg', 'robots.txt'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt'],
       manifest: {
-        name: 'Atmospherea Expense',
-        short_name: 'Atmospherea',
-        description: 'Expense Tracker for Atmospherea',
-        theme_color: '#0f172a',
-        background_color: '#020617',
-        display: 'standalone',
-        start_url: '/',
-        icons: [
-          {
-            src: '/icons/icon_192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/icons/icon_512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
+        "name": "Atmospherea Finance",
+        "short_name": "Atmospherea",
+        "description": "Expense tracker for Atmospherea",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait-primary",
+        "theme_color": "#0f172a",
+        "background_color": "#020617",
+        "categories": [
+                "finance",
+                "productivity"
+        ],
+        "icons": [
+                {
+                        "src": "icons/icon-192.png",
+                        "sizes": "192x192",
+                        "type": "image/png",
+                        "purpose": "any"
+                },
+                {
+                        "src": "icons/icon-192-maskable.png",
+                        "sizes": "192x192",
+                        "type": "image/png",
+                        "purpose": "maskable any"
+                },
+                {
+                        "src": "icons/icon-256.png",
+                        "sizes": "256x256",
+                        "type": "image/png",
+                        "purpose": "any"
+                },
+                {
+                        "src": "icons/icon-256-maskable.png",
+                        "sizes": "256x256",
+                        "type": "image/png",
+                        "purpose": "maskable any"
+                },
+                {
+                        "src": "icons/icon-384.png",
+                        "sizes": "384x384",
+                        "type": "image/png",
+                        "purpose": "any"
+                },
+                {
+                        "src": "icons/icon-384-maskable.png",
+                        "sizes": "384x384",
+                        "type": "image/png",
+                        "purpose": "maskable any"
+                },
+                {
+                        "src": "icons/icon-512.png",
+                        "sizes": "512x512",
+                        "type": "image/png",
+                        "purpose": "any"
+                },
+                {
+                        "src": "icons/icon-512-maskable.png",
+                        "sizes": "512x512",
+                        "type": "image/png",
+                        "purpose": "maskable any"
+                }
         ]
-        
-      }
+}
     })
-  ]
+  ],
+  server: {
+    fs: {
+      allow: ['.']
+    }
+  }
 })

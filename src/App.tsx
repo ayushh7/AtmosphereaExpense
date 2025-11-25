@@ -79,7 +79,7 @@ function App() {
       setNotesLoading(false)
       return
     }
-    ;(async () => {
+    ; (async () => {
       try {
         await loadTransactions()
         await loadNotes()
@@ -90,113 +90,113 @@ function App() {
     })()
   }, [role])
   useEffect(() => {
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-    // when session changes, fetch profile and set role
-    if (session?.access_token) {
-      // fetch profile role as we do in login
-    } else {
-      setRole(null)
-      localStorage.removeItem('role')
-    }
-  })
-  return () => data.subscription.unsubscribe()
-}, [])
-
-
-// replace your existing handleLogin with this
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault()
-  setLoginError(null)
-  setLoginLoading(true)
-
-  // local username -> email mapping (used for Supabase Auth)
-  const emailMap: Record<string, string> = {
-    admin: 'admin@atmospherea.local',
-    moderator: 'moderator@atmospherea.local',
-    user: 'user@atmospherea.local'
-  }
-
-  // validate local creds first (keeps the same UX you had)
-  let expectedRole: Role | null = null
-  if (loginUsername === 'admin' && loginPassword === 'rishuanshu') {
-    expectedRole = 'admin'
-  } else if (
-    loginUsername === 'moderator' &&
-    loginPassword === 'atmospherea25042025'
-  ) {
-    expectedRole = 'moderator'
-  } else if (loginUsername === 'user' && loginPassword === 'useratmospherea') {
-    expectedRole = 'user'
-  }
-
-  if (!expectedRole) {
-    setLoginError('Invalid username or password')
-    setLoginLoading(false)
-    return
-  }
-
-  const email = emailMap[loginUsername]
-  const password = loginPassword
-
-  try {
-    // sign in to supabase (this creates a session so RLS sees auth.uid())
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      // when session changes, fetch profile and set role
+      if (session?.access_token) {
+        // fetch profile role as we do in login
+      } else {
+        setRole(null)
+        localStorage.removeItem('role')
+      }
     })
+    return () => data.subscription.unsubscribe()
+  }, [])
 
-    if (error) {
-      // show helpful message (maybe user not created on Supabase)
-      setLoginError('Auth failed: ' + error.message)
+
+  // replace your existing handleLogin with this
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginError(null)
+    setLoginLoading(true)
+
+    // local username -> email mapping (used for Supabase Auth)
+    const emailMap: Record<string, string> = {
+      admin: 'admin@atmospherea.local',
+      moderator: 'moderator@atmospherea.local',
+      user: 'user@atmospherea.local'
+    }
+
+    // validate local creds first (keeps the same UX you had)
+    let expectedRole: Role | null = null
+    if (loginUsername === 'admin' && loginPassword === 'rishuanshu') {
+      expectedRole = 'admin'
+    } else if (
+      loginUsername === 'moderator' &&
+      loginPassword === 'atmospherea25042025'
+    ) {
+      expectedRole = 'moderator'
+    } else if (loginUsername === 'user' && loginPassword === 'useratmospherea') {
+      expectedRole = 'user'
+    }
+
+    if (!expectedRole) {
+      setLoginError('Invalid username or password')
       setLoginLoading(false)
       return
     }
 
-    // If signIn succeeded, fetch the role from profiles table (if present)
-    const user = data?.user
-    let serverRole: Role | null = expectedRole
+    const email = emailMap[loginUsername]
+    const password = loginPassword
 
-    if (user?.id) {
-      const { data: profile, error: pErr } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle()
+    try {
+      // sign in to supabase (this creates a session so RLS sees auth.uid())
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
 
-      if (pErr) {
-        console.warn('Could not load profile role:', pErr)
-      } else if (profile?.role) {
-        serverRole = profile.role as Role
+      if (error) {
+        // show helpful message (maybe user not created on Supabase)
+        setLoginError('Auth failed: ' + error.message)
+        setLoginLoading(false)
+        return
       }
+
+      // If signIn succeeded, fetch the role from profiles table (if present)
+      const user = data?.user
+      let serverRole: Role | null = expectedRole
+
+      if (user?.id) {
+        const { data: profile, error: pErr } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (pErr) {
+          console.warn('Could not load profile role:', pErr)
+        } else if (profile?.role) {
+          serverRole = profile.role as Role
+        }
+      }
+
+      // set role in UI (serverRole wins if present)
+      setRole(serverRole)
+      if (serverRole) localStorage.setItem('role', serverRole)
+
+      // load data now that session exists
+      await loadTransactions()
+      await loadNotes()
+    } catch (err: any) {
+      console.error('Login error', err)
+      setLoginError('Login error: ' + (err?.message || String(err)))
+    } finally {
+      setLoginLoading(false)
     }
-
-    // set role in UI (serverRole wins if present)
-    setRole(serverRole)
-    if (serverRole) localStorage.setItem('role', serverRole)
-
-    // load data now that session exists
-    await loadTransactions()
-    await loadNotes()
-  } catch (err: any) {
-    console.error('Login error', err)
-    setLoginError('Login error: ' + (err?.message || String(err)))
-  } finally {
-    setLoginLoading(false)
   }
-}
 
 
-const handleLogout = async () => {
-  try {
-    await supabase.auth.signOut()
-  } catch (err) {
-    console.warn('supabase signOut error', err)
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.warn('supabase signOut error', err)
+    }
+    setRole(null)
+    localStorage.removeItem('role')
+    setTransactions([])
+    setNotes([])
   }
-  setRole(null)
-  localStorage.removeItem('role')
-  setTransactions([])
-  setNotes([])
-}
 
 
   const handleAddNote = async (text: string) => {
@@ -306,8 +306,8 @@ const handleLogout = async () => {
           </thead>
           <tbody>
             ${todayTx
-              .map(
-                t => `
+        .map(
+          t => `
               <tr>
                 <td>${new Date(t.date).toLocaleTimeString()}</td>
                 <td>${t.type}</td>
@@ -315,8 +315,8 @@ const handleLogout = async () => {
                 <td>₹${t.amount.toFixed(2)}</td>
               </tr>
             `
-              )
-              .join('')}
+        )
+        .join('')}
           </tbody>
         </table>
         <script>
@@ -462,6 +462,10 @@ const handleLogout = async () => {
             placeholder="Username"
             value={loginUsername}
             onChange={e => setLoginUsername(e.target.value)}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="text"
             style={{
               padding: '8px',
               borderRadius: '8px',
@@ -476,6 +480,10 @@ const handleLogout = async () => {
             placeholder="Password"
             value={loginPassword}
             onChange={e => setLoginPassword(e.target.value)}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="text"
             style={{
               padding: '8px',
               borderRadius: '8px',
@@ -485,6 +493,7 @@ const handleLogout = async () => {
               fontSize: '14px'
             }}
           />
+
 
           {loginError && (
             <div style={{ fontSize: '12px', color: '#f97316' }}>{loginError}</div>
@@ -507,7 +516,7 @@ const handleLogout = async () => {
             {loginLoading ? 'Signing in…' : 'Sign in'}
           </button>
 
-          
+
         </form>
       </div>
     )
